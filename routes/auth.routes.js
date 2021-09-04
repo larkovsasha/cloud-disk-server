@@ -30,7 +30,7 @@ router.post('/registration', [
 
         await user.save()
         console.log(user, 'user')
-        await fileService.createDir(new File({user:user._id, name: ''}))
+        await fileService.createDir(new File({user: user._id, name: ''}))
         return res.json({message: "User was created"})
 
     } catch (e) {
@@ -49,7 +49,7 @@ router.post('/login', async (req, res) => {
         if (!isPassValid) {
             return res.status(400).json({message: 'Invalid Password'})
         }
-        const token = jwt.sign({id: user.id}, config.get('secretKey'), {expiresIn: '1h'})
+        const token = jwt.sign({id: user.id}, config.get('secretKey'), {expiresIn: '10h'})
         return res.json({
             token,
             user:{
