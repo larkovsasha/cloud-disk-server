@@ -2,5 +2,6 @@
   "serverPORT": 5000,
   "dbUrl": "mongodb+srv://cloud-disk:30gdMkesg9oPhfxo@cluster0.vwuus.mongodb.net/myFirstDatabase?retryWrites=true&w=majority",
   "secretKey": "mern-secret-key",
-  "filePath": "G:\\dev\\react_project\\cloud-disk\\server\\files"
+  "filePath": "G:\\dev\\react_project\\cloud-disk\\server\\files",
+  "staticPath": "G:\\dev\\react_project\\cloud-disk\\server\\static"
 }

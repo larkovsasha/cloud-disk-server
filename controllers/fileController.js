@@ -1,21 +1,23 @@
+
 const fileService = require('../services/fileService')
 const User = require('../models/User')
 const File = require('../models/File')
 const config = require('config')
 const fs = require('fs')
+const uuid = require('uuid')
 
 
-class FileController{
-    async createDir(req, res){
-        try{
+class FileController {
+    async createDir(req, res) {
+        try {
             const {name, type, parent} = req.body
             const file = new File({name, type, parent, user: req.user.id})
             const parentFile = await File.findOne({_id: parent})
 
-            if(!parentFile){
+            if (!parentFile) {
                 file.path = name
                 await fileService.createDir(file)
-            }else{
+            } else {
                 file.path = `${parentFile.path}\\${name}`
                 await fileService.createDir(file)
                 parentFile.children.push(file._id)
@@ -23,22 +25,21 @@ class FileController{
             }
             await file.save()
             return res.json(file)
-        }catch (e){
+        } catch (e) {
             console.log(e)
             res.status(400).json(e)
         }
     }
 
 
-    async getFiles(req, res){
-        try{
-            const files = await File.find({
-                user: req.user.id,
-                parent: req.query.parent
-            })
+    async getFiles(req, res) {
+        try {
+            const sort = req.query.sort
+            const files = await File.find({user: req.user.id, parent: req.query.parent}).sort({[sort]: 1})
+
             return res.json(files)
 
-        }catch(e){
+        } catch (e) {
             console.log(e)
             return res.status(500).json(e)
         }
@@ -62,7 +63,7 @@ class FileController{
             if (parent) {
                 path = `${config.get('filePath')}\\${user._id}\\${parent.path}\\${file.name}`
             } else {
-                path = `${config.get('filePath')}\\${user._id}${file.name}`
+                path = `${config.get('filePath')}\\${user._id}\\${file.name}`
             }
 
             if (fs.existsSync(path)) {
@@ -75,7 +76,7 @@ class FileController{
             if (parent) {
                 filePath = parent.path + "\\" + file.name
             }
-            console.log(file)
+
             const dbFile = new File({
                 name: file.name,
                 type,
@@ -97,43 +98,92 @@ class FileController{
         }
     }
 
-    /*async downloadFile(req, res){
-        try{
+    async downloadFile(req, res) {
+        try {
             const file = await File.findOne({_id: req.query.id, user: req.user.id})
-            const path = `${config.get('filePath')}\\${req.user.id}\\${file.path}\\${file.name}`
-            if(fs.existsSync(path)){
+            const path = fileService.getPath(file)
+
+            if (fs.existsSync(path)) {
                 res.download(path, file.name)
             }
 
-        }catch (e){
+        } catch (e) {
             console.log(e)
             res.status(500).json({message: 'download error'})
         }
 
-    }*/
-    async downloadFile(req, res) {
-        //console.log(req.query)
-        //console.log(req.user, 'user')
-     /*   try {
+    }
+
+
+    async deleteFile(req, res) {
+
+        try {
             const file = await File.findOne({_id: req.query.id, user: req.user.id})
-            const path = config.get('filePath') + '\\' + req.user.id + '\\' + file.path + '\\' + file.name
-            if (fs.existsSync(path)) {
-                return res.download(path, file.name)
+            if (!file) {
+                return res.status(400).json({message: 'File not found'})
             }
-            return res.status(400).json({message: "Download error"})
+            console.log(file)
+
+            fileService.deleteFile(file)
+            await file.remove()
+            return res.json({message: 'File was deleted'})
+
+
         } catch (e) {
             console.log(e)
-            res.status(500).json({message: "Download error"})
-        }*/
-        const file = await File.findOne({_id: req.query.id, user: req.user.id})
-        const path = config.get('filePath') + '\\' + req.user.id + '\\' + file.path + '\\' + file.name
-        if (fs.existsSync(path)) {
-            return res.download(path, file.name)
+            return res.status(400).json({message: 'Dir is not empty'})
         }
-        console.log(file)
-        console.log(path)
-        console.log(fs.existsSync(path))
     }
+
+    async searchFile(req, res) {
+
+        try {
+            const searchName = req.query.search
+            let files = await File.find({user: req.user.id})
+            files = files.filter(file => file.name.includes(searchName))
+            console.log(files)
+            return res.json(files)
+        } catch (e) {
+            console.log(e)
+            return res.status(400).json({message: 'Search error'})
+        }
+    }
+    async uploadAvatar(req, res) {
+
+        try {
+            const file = req.files.file
+            const user = await User.findById(req.user.id)
+            if(user.avatar){
+                fs.unlinkSync(config.get('staticPath') + "\\" + user.avatar)
+            }
+
+
+            const avatarName = uuid.v4() + ".jpg"
+            file.mv(config.get('staticPath') + "\\" + avatarName)
+            user.avatar = avatarName
+
+            await user.save()
+            return res.json({user})
+        } catch (e) {
+            console.log(e)
+            return res.status(400).json({message: 'Avatar upload error'})
+        }
+    }
+    async deleteAvatar(req, res) {
+        console.log('delete')
+        console.log(req.user.id)
+        try {
+            const user = await User.findById(req.user.id)
+            fs.unlinkSync(config.get('staticPath') + "\\" + user.avatar)
+            user.avatar = null
+            await user.save()
+            return res.json({user})
+        } catch (e) {
+            console.log(e)
+            return res.status(400).json({message: 'Search error'})
+        }
+    }
+
 }
 
 module.exports = new FileController()
